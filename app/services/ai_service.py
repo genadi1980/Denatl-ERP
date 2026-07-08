@@ -2,7 +2,6 @@ import os
 import json
 import time
 import re
-from urllib import request, error as urllib_error
 from dotenv import load_dotenv
 from google import genai
 
@@ -16,13 +15,6 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 client = None
 if GEMINI_API_KEY:
     client = genai.Client(api_key=GEMINI_API_KEY)
-
-# --- Ollama Config (Optimized for Intel i5 Shared-GPU Laptop) ---
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
-OLLAMA_API_PATH = os.getenv("OLLAMA_API_PATH", "/v1/chat/completions")
-OLLAMA_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
-OLLAMA_MAX_RETRIES = int(os.getenv("OLLAMA_MAX_RETRIES", "2"))
 
 
 def sanitize_dental_data(products):
@@ -110,43 +102,18 @@ At the end, append a section named "### **ТОП 3 препоръки за на�
 {data_block}"""
 
 
-def generate_ai_report(products_raw_data, provider: str = None):
-    """Accepts either a raw database list or a string prompt, sanitizes data errors, and constructs the report."""
-
-    # Default to gemini in 100% cloud environments
-    if not provider:
-        provider = "gemini"
-    else:
-        provider = provider.lower().strip()
-
+def generate_ai_report(products_raw_data, provider: str = "gemini"):
+    """Accepts either a raw database list or a string prompt and synthesizes the report using Google Gemini."""
     # Dynamically builds prompt strings or directly passes input strings through
     prompt_text = build_unified_prompt(products_raw_data)
 
-    if provider == "gemini":
-        try:
-            if client:
-                return _generate_gemini_report(prompt_text)
-            else:
-                raise RuntimeError("Gemini client is not configured (missing API key).")
-        except Exception as e:
-            # Fallback to Ollama only if specifically running on local with Ollama active
-            print(f"Gemini failed, falling back to Ollama: {e}")
-            try:
-                return _generate_ollama_report(prompt_text)
-            except Exception:
-                pass
-            raise e
-
-    # Ollama priority (when provider is "ollama")
     try:
-        return _generate_ollama_report(prompt_text)
-    except Exception as e:
-        print(f"Ollama failed, falling back to Gemini: {e}")
         if client:
-            try:
-                return _generate_gemini_report(prompt_text)
-            except Exception:
-                pass
+            return _generate_gemini_report(prompt_text)
+        else:
+            raise RuntimeError("Gemini client is not configured (missing API key).")
+    except Exception as e:
+        print(f"Gemini analysis failed: {e}")
         raise e
 
 
@@ -162,62 +129,3 @@ def _generate_gemini_report(prompt_text: str):
     if response and response.text:
         return response.text.strip(), "gemini"
     raise RuntimeError("Empty response from Gemini")
-
-
-def _generate_ollama_report(prompt_text: str):
-    """Internal helper for Ollama generation optimized for Qwen 1.5B."""
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [{"role": "user", "content": prompt_text}],
-        "temperature": 0.2,
-        "options": {
-            "num_ctx": 8192,  # Give it an 8k context window so text fits safely
-            "num_predict": 1000,  # High limit to allow complete Bulgarian summaries
-        },
-    }
-    data = json.dumps(payload).encode("utf-8")
-    url = f"{OLLAMA_HOST}{OLLAMA_API_PATH}"
-
-    last_exc = None
-    for attempt in range(OLLAMA_MAX_RETRIES + 1):
-        req = request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
-            method="POST",
-        )
-        start = time.time()
-        try:
-            with request.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as resp:
-                body = resp.read().decode("utf-8")
-                response = json.loads(body)
-                if "choices" in response and len(response["choices"]) > 0:
-                    choice = response["choices"][0]
-                    content = choice.get("message", {}).get("content")
-                    if content:
-                        return content.strip(), "ollama"
-                    return choice.get("text", "").strip(), "ollama"
-                raise RuntimeError(
-                    f"Ollama returned unexpected response (status={resp.getcode()}): {response}"
-                )
-        except urllib_error.HTTPError as e:
-            body = (
-                e.read().decode("utf-8", errors="ignore") if hasattr(e, "read") else ""
-            )
-            code = getattr(e, "code", None)
-            last_exc = RuntimeError(f"Ollama HTTP error {code}: {body}")
-            if code and 400 <= code < 500:
-                break
-        except Exception as e:
-            last_exc = RuntimeError(f"Ollama request failed: {type(e).__name__}: {e}")
-            if attempt < OLLAMA_MAX_RETRIES:
-                time.sleep(1 + attempt)
-                continue
-        finally:
-            elapsed = time.time() - start
-            print(
-                f"Ollama attempt {attempt + 1}/{OLLAMA_MAX_RETRIES + 1} elapsed={elapsed:.2f}s url={url}"
-            )
-    if last_exc:
-        raise last_exc
-    raise RuntimeError("Ollama request failed without exception")

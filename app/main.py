@@ -21,7 +21,7 @@ from sqlalchemy import text, func
 
 from app.database import engine, get_db, Base
 from models.models import ProductDB, PriceHistoryDB
-from app.services.ai_service import generate_ai_report, OLLAMA_HOST, OLLAMA_MODEL
+from app.services.ai_service import generate_ai_report
 from app.services.scraper_service import run_dental_scraper_task
 from app.dependencies import verify_supabase_jwt
 
@@ -64,14 +64,14 @@ def global_exception_handler(request, exc: Exception):
 
 @app.on_event("startup")
 def _init_app():
-    """Initialize database tables and log Ollama settings."""
+    """Initialize database tables and log status."""
     try:
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully")
     except Exception as e:
         print("Failed to create database tables:", type(e).__name__, e)
 
-    print(f"Ollama host: {OLLAMA_HOST}, model: {OLLAMA_MODEL}")
+    print("Gemini Serverless AI engine active")
 
 
 # --- Endpoints ---
@@ -234,11 +234,9 @@ def analyze_promotions_endpoint(provider: str = None, db: Session = Depends(get_
 
 @app.get("/health")
 def health_check():
-    """Simple health check for DB, Ollama, and Gemini services."""
+    """Simple health check for DB and Gemini services."""
     db_ok = False
-    ollama_ok = False
     gemini_ok = bool(os.getenv("GEMINI_API_KEY"))
-    models = []
 
     try:
         with engine.connect() as conn:
@@ -247,19 +245,7 @@ def health_check():
     except Exception:
         db_ok = False
 
-    try:
-        req = request.Request(
-            f"{OLLAMA_HOST}/v1/models", headers={"Content-Type": "application/json"}
-        )
-        with request.urlopen(req, timeout=5) as resp:
-            if resp.status == 200:
-                ollama_ok = True
-                body = json.loads(resp.read().decode("utf-8"))
-                models = [m.get("id") for m in body.get("data", [])]
-    except Exception:
-        ollama_ok = False
-
-    return {"db": db_ok, "ollama": ollama_ok, "gemini": gemini_ok, "models": models}
+    return {"db": db_ok, "gemini": gemini_ok}
 
 
 class InventoryUpdateSchema(BaseModel):
