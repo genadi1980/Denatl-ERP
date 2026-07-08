@@ -12,6 +12,7 @@ if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -34,6 +35,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+def global_exception_handler(request, exc: Exception):
+    """
+    Global fallback exception handler to capture server errors, 
+    print trace logs, and return responses with CORS headers.
+    """
+    import traceback
+    error_details = traceback.format_exc()
+    print(f"CRITICAL SYSTEM EXCEPTION:\n{error_details}")
+    
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error occurred on the Render cloud instance.",
+            "error": str(exc)
+        },
+        headers=headers
+    )
 
 
 @app.on_event("startup")
