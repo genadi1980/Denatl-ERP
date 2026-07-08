@@ -4,5 +4,7 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 openai
-python-dotenv
 playwright
+google-genai
+requests
+python-jose[cryptography]
