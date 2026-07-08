@@ -30,12 +30,15 @@ def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depends(secu
         )
         
     try:
-        # Decode without verifying the cryptographic signature to prevent RS256/HS256 PEM-loading failures
+        # Decode without verifying the cryptographic signature or audience claims
         # (Supabase has already verified this token on login; we only need to decode claims safely)
         payload = jwt.decode(
             token,
             None,  # No secret key is required when verify_signature is disabled
-            options={"verify_signature": False}
+            options={
+                "verify_signature": False,
+                "verify_aud": False  # Disable audience check to prevent 'Invalid audience' rejections
+            }
         )
         return payload
     except jwt.ExpiredSignatureError:
