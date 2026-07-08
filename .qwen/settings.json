@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv *)",
+      "Bash(c:\\users\\genadi\\documents\\programing\\projects\\denatl-erp\\.venv\\scripts\\python.exe *)",
+      "Bash(sc *)"
+    ]
+  },
+  "$version": 4
+}
