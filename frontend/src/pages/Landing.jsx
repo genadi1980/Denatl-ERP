@@ -54,10 +54,10 @@ export default function Landing() {
           <div className="flex items-center gap-2 md:gap-4">
             <Link 
               to="/erp" 
-              className="px-3 py-2 md:px-5 md:py-2.5 rounded-xl border border-clinic-accent/30 text-[9px] md:text-xs font-bold md:font-semibold text-clinic-navy tracking-wider hover:bg-clinic-navy hover:text-white transition-all duration-300 flex items-center gap-1.5 shadow-sm"
+              className="px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl border border-clinic-accent/30 text-[8px] md:text-[10px] font-bold tracking-wider text-clinic-navy hover:bg-clinic-navy hover:text-white transition-all duration-300 flex items-center gap-1 shadow-sm"
             >
               ДЕНТАЛЕН ЕРП
-              <ArrowRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
+              <ArrowRight className="w-2.5 h-2.5 md:w-3 md:h-3" />
             </Link>
 
             {/* Mobile menu trigger button */}
