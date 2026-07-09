@@ -17,6 +17,13 @@ import {
 } from 'lucide-react';
 
 export default function Landing() {
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-clinic-ice selection:bg-clinic-accent/30 selection:text-clinic-charcoal">
       {/* 1. Header/Navbar */}
@@ -31,10 +38,10 @@ export default function Landing() {
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-clinic-charcoal/80">
-            <a href="#services" className="hover:text-clinic-blue transition-colors duration-200">Услуги</a>
-            <a href="#about" className="hover:text-clinic-blue transition-colors duration-200">За нас</a>
-            <a href="#stats" className="hover:text-clinic-blue transition-colors duration-200">Доверие</a>
-            <a href="#contact" className="hover:text-clinic-blue transition-colors duration-200">Контакти</a>
+            <button onClick={() => scrollToSection('services')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Услуги</button>
+            <button onClick={() => scrollToSection('about')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">За нас</button>
+            <button onClick={() => scrollToSection('stats')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Доверие</button>
+            <button onClick={() => scrollToSection('contact')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Контакти</button>
           </div>
 
           <div className="flex items-center gap-4">
@@ -50,7 +57,7 @@ export default function Landing() {
       </nav>
 
       {/* 2. Hero Section */}
-      <section className="pt-40 pb-20 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <section id="about" className="pt-40 pb-20 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 space-y-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-clinic-accent/10 border border-clinic-accent/20 text-clinic-navy text-xs font-semibold tracking-wide">
             <Sparkles className="w-3.5 h-3.5 text-clinic-accent" />
