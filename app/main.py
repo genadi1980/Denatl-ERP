@@ -21,7 +21,7 @@ from sqlalchemy import text, func
 
 from app.database import engine, get_db, Base
 from models.models import ProductDB, PriceHistoryDB
-from app.services.ai_service import generate_ai_report
+from app.services.ai_service import generate_ai_report, OLLAMA_HOST, OLLAMA_MODEL
 from app.services.scraper_service import run_dental_scraper_task
 from app.dependencies import verify_supabase_jwt
 
@@ -71,6 +71,7 @@ def _init_app():
     except Exception as e:
         print("Failed to create database tables:", type(e).__name__, e)
 
+    print(f"Ollama host: {OLLAMA_HOST}, model: {OLLAMA_MODEL}")
     print("Gemini Serverless AI engine active")
 
 
@@ -221,6 +222,21 @@ def analyze_promotions_endpoint(provider: str = None, db: Session = Depends(get_
 
     try:
         ai_text, backend = generate_ai_report(prompt, provider=provider)
+        
+        # Calculate exact total potential savings in Python for 100% mathematical accuracy
+        # (This prevents LLM hallucination and guarantees correct math at the top of the report!)
+        try:
+            from app.services.ai_service import sanitize_dental_data
+            sanitized = sanitize_dental_data(recent_promos)
+            valid_items = [p for p in sanitized if p.get("discount_percent", 0) >= 15.0]
+            total_savings = sum(max(p.get("old_price", 0) - p.get("promo_price", 0), 0) for p in valid_items)
+            
+            # Prepend a premium, styled markdown banner showing the exact calculated total savings
+            if total_savings > 0 and backend != "error_fallback":
+                savings_banner = f"## 🎁 **Общо спестена сума от текущите отстъпки: {total_savings:.2f} лв.**\n*(Сумата представлява потенциалното Ви спестяване при закупуване на един брой от всеки намален продукт спрямо редовните пазарни цени).*\n\n---\n\n"
+                ai_text = savings_banner + ai_text
+        except Exception as math_err:
+            print(f"Failed to prepend exact savings math: {math_err}")
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
