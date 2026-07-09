@@ -55,7 +55,7 @@ def global_exception_handler(request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "Internal Server Error occurred on the Render cloud instance.",
+            "detail": "Internal Server Error occurred on the backend.",
             "error": str(exc)
         },
         headers=headers

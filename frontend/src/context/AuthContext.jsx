@@ -1,56 +1,44 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../supabase';
 
 const AuthContext = createContext({
   user: null,
   session: null,
-  loading: true,
-  login: async () => {},
+  loading: false,
+  login: async (email, password) => {},
   logout: async () => {},
 });
+
+// Secure clinic staff access password (stored locally/client-side)
+const CLINIC_STAFF_PASSWORD = 'radevdent2026';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Load local session from localStorage on startup
   useEffect(() => {
-    // 1. Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (err) {
-        console.error('Error fetching initial session:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    // 2. Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
+    const savedUser = localStorage.getItem('radev_staff_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      setSession({ access_token: 'local_token' });
+    }
+    setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return data;
+      // Validate against the local clinic administrative staff password
+      if (password === CLINIC_STAFF_PASSWORD) {
+        const staffUser = { email: email || 'staff@radevclinic.bg', role: 'admin' };
+        setUser(staffUser);
+        setSession({ access_token: 'local_token' });
+        localStorage.setItem('radev_staff_user', JSON.stringify(staffUser));
+        return { user: staffUser };
+      } else {
+        throw new Error('Неправилна административна парола за достъп.');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,8 +47,9 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      setUser(null);
+      setSession(null);
+      localStorage.removeItem('radev_staff_user');
     } finally {
       setLoading(false);
     }

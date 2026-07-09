@@ -6,5 +6,6 @@ python-dotenv
 openai
 playwright
 google-genai
+google-generativeai
 requests
 python-jose[cryptography]

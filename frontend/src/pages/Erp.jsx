@@ -486,7 +486,14 @@ export default function Erp() {
                       return (
                         <tr key={product.id} className="border-b border-clinic-ice/50 text-sm hover:bg-clinic-ice/30 transition-all duration-150">
                           <td className="py-4 px-3">
-                            <div className="font-semibold text-clinic-navy">{product.name}</div>
+                            <a 
+                              href={product.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="font-semibold text-clinic-navy hover:text-clinic-blue hover:underline transition-colors duration-200"
+                            >
+                              {product.name}
+                            </a>
                             <div className="text-[10px] font-bold text-clinic-accent uppercase tracking-wider">{product.brand || 'GC'}</div>
                           </td>
                           <td className="py-4 px-3 text-clinic-charcoal/70 text-xs">

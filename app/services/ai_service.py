@@ -3,7 +3,7 @@ import json
 import time
 import re
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 
 load_dotenv(override=True)
 
@@ -11,10 +11,9 @@ load_dotenv(override=True)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
-# Initialize the new Gemini Client
-client = None
+# Configure the classic developer GenerativeAI SDK
 if GEMINI_API_KEY:
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    genai.configure(api_key=GEMINI_API_KEY)
 
 
 def sanitize_dental_data(products):
@@ -108,24 +107,40 @@ def generate_ai_report(products_raw_data, provider: str = "gemini"):
     prompt_text = build_unified_prompt(products_raw_data)
 
     try:
-        if client:
+        if GEMINI_API_KEY:
             return _generate_gemini_report(prompt_text)
         else:
-            raise RuntimeError("Gemini client is not configured (missing API key).")
+            raise RuntimeError("Gemini API key is unconfigured.")
     except Exception as e:
         print(f"Gemini analysis failed: {e}")
-        raise e
+        # Return a premium, helpful user-friendly guidance text instead of crashing the server with 500
+        error_report = f"""⚠️ **Грешка при генериране на AI Анализа**
+
+Неуспешно свързване с облачното AI ядро на Google Gemini. 
+Техническа грешка от Google: *{str(e)}*
+
+**За да активирате Вашите AI Анализи на намаленията в реално време:**
+1. Отворете Вашия локален конфигурационен файл **`.env`** на компютъра си.
+2. Вземете безплатен API ключ за 5 секунди от **[Google AI Studio (aistudio.google.com)](https://aistudio.google.com)**.
+3. Поставете копирания ключ (който задължително започва с **`AIzaSy...`**) долу под променливата:
+   `GEMINI_API_KEY=Вашият_Нов_Ключ`
+4. Спрете бекенд процеса на компютъра си и го стартирайте наново от конзолата, за да заредите настройките.
+
+*След като поставите Вашия оригинален ключ, тази секция моментално ще се отключи и ще Ви показва най-изгодните топ оферти на пазара!*"""
+        return error_report, "error_fallback"
 
 
 def _generate_gemini_report(prompt_text: str):
-    print(f"Using New Gemini SDK ({GEMINI_MODEL}) for analysis...")
+    print(f"Using Classic GenerativeAI SDK ({GEMINI_MODEL}) for analysis...")
 
-    if client is None:
+    if not GEMINI_API_KEY:
         raise RuntimeError(
-            "Gemini client is uninitialized. Verify your GEMINI_API_KEY."
+            "Gemini API key is unconfigured. Verify your GEMINI_API_KEY."
         )
 
-    response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt_text)
+    model = genai.GenerativeModel(GEMINI_MODEL)
+    response = model.generate_content(prompt_text)
+    
     if response and response.text:
         return response.text.strip(), "gemini"
     raise RuntimeError("Empty response from Gemini")

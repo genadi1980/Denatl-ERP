@@ -29,12 +29,7 @@ export default function Login() {
       navigate('/erp');
     } catch (err) {
       console.error('Login failure:', err);
-      // Clean up Supabase auth error messages for the end-user
-      if (err.message === 'Invalid login credentials') {
-        setErrorMsg('Невалиден имейл или парола. Моля, опитайте отново.');
-      } else {
-        setErrorMsg(err.message || 'Възникна грешка при входа. Опитайте отново.');
-      }
+      setErrorMsg(err.message || 'Неправилна административна парола за достъп.');
     } finally {
       setSubmitting(false);
     }
@@ -91,14 +86,14 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold tracking-wider text-clinic-navy/80 uppercase block">Парола</label>
+            <label className="text-xs font-bold tracking-wider text-clinic-navy/80 uppercase block">Парола за Достъп до ЕРП</label>
             <div className="relative">
               <span className="absolute left-4 top-3.5 text-clinic-charcoal/40">
                 <Lock className="w-4 h-4" />
               </span>
               <input 
                 type="password" 
-                placeholder="••••••••" 
+                placeholder="Код за достъп до портала..." 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required 
