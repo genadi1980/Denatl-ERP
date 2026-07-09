@@ -235,7 +235,7 @@ export default function Landing() {
               </div>
               <div>
                 <h4 className="font-semibold text-clinic-navy">Адрес</h4>
-                <p className="text-sm text-clinic-charcoal/70">ул. „Дентален Блясък“ №12, София, България</p>
+                <p className="text-sm text-clinic-charcoal/70">бул. „Цар Освободител“ №6, Шумен, България, 9700</p>
               </div>
             </div>
 
@@ -245,7 +245,7 @@ export default function Landing() {
               </div>
               <div>
                 <h4 className="font-semibold text-clinic-navy">Телефон</h4>
-                <p className="text-sm text-clinic-charcoal/70">+359 2 999 888</p>
+                <p className="text-sm text-clinic-charcoal/70">088 836 6068</p>
               </div>
             </div>
 
@@ -255,7 +255,7 @@ export default function Landing() {
               </div>
               <div>
                 <h4 className="font-semibold text-clinic-navy">Имейл</h4>
-                <p className="text-sm text-clinic-charcoal/70">office@radevclinic.bg</p>
+                <p className="text-sm text-clinic-charcoal/70">radevdent@gmail.com</p>
               </div>
             </div>
 
