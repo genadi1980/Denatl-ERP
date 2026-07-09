@@ -75,7 +75,9 @@ export default function Landing() {
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4">
             <a 
-              href="#contact" 
+              href="https://calendar.app.google/TQf6uDGi9GoUjz2G6" 
+              target="_blank" 
+              rel="noopener noreferrer" 
               className="px-8 py-4 bg-clinic-navy text-white font-semibold rounded-xl text-center shadow-lg shadow-clinic-navy/20 hover:bg-clinic-blue hover:-translate-y-0.5 transition-all duration-300"
             >
               Запишете Час
