@@ -1,361 +1,199 @@
-# FastAPI for AI Applications
+# Radev Clinic Web Portal & Gated Dental ERP (100% Cloud-Native & Local Offline)
 
-## What is FastAPI?
+Welcome to the official, production-ready source code repository of the **Radev Clinic Dental Suite**. This project houses a beautiful, high-performance patient-facing marketing website integrated seamlessly with a secure, offline-first/cloud-ready **Dental ERP** administrative dashboard. 
 
-[FastAPI](https://fastapi.tiangolo.com/) is a modern, high-performance web framework for building APIs with Python. For AI apps, it serves as the interface between your AI models and the outside world, allowing external systems to send data to your models and receive predictions or processing results. What makes FastAPI particularly appealing is its simplicity and elegance - it provides everything you need without unnecessary complexity.
-
-```mermaid
 ---
-config:
-  theme: neutral
+
+## 1. Architectural Topology & System Overview
+
+The system is engineered as a decoupled, multi-tier web application capable of running **100% locally and offline** (using local SQLite databases and local AI models) or **100% cloud-hosted** (using Vercel, Render, and cloud-managed Supabase Postgres/Auth).
+
+```
+                      +-----------------------------------------------------------+
+                      |                      FRONTEND (SPA)                       |
+                      |            Vite + React + Tailwind CSS + Vercel           |
+                      |                                                           |
+                      |     +--------------------+      +--------------------+    |
+                      |     |   PUBLIC CLINIC    |      |    INTERNAL ERP    |    |
+                      |     |  (Landing Page)    | ===> |     DASHBOARD      |    |
+                      |     |  (Google Calendar) |      | (Staff Password Gate)   |
+                      |     +--------------------+      +--------------------+    |
+                      +------------------+-----------------------+----------------+
+                                         |                       |
+                                         | HTTPS REST            | Local/Cloud APIs
+                                         v                       v
+                      +------------------+-----------------------+----------------+
+                      |                       BACKEND (API)                       |
+                      |          FastAPI + SQLAlchemy + Docker + Render           |
+                      |                                                           |
+                      |   +--------------------+     +------------------------+   |
+                      |   |  BACKGROUND TASK   |     |    REST API SERVICES   |   |
+                      |   |   (Thread Pool)    |     |  (Products, Inventory, |   |
+                      |   | (Playwright Engine)|     |       AI Reports)      |   |
+                      |   +---------+----------+     +-----------+------------+   |
+                      +-------------|----------------------------|----------------+
+                                    | PostgreSQL Writes          | Direct Queries
+                                    +--------------+-------------+
+                                                   |
+                                                   v
+                      +----------------------------+------------------------------+
+                      |                   DATABASE & CORES                       |
+                      |                                                           |
+                      |  +------------------------+    +-----------------------+  |
+                      |  |     SUPABASE CLOUD     |    |    LOCAL SQLITE       |  |
+                      |  | (PostgreSQL, Pools-6543)| OR |  (dental_tracker.db)  |  |
+                      |  +------------------------+    +-----------------------+  |
+                      |                                                           |
+                      |  +------------------------+    +-----------------------+  |
+                      |  |   GOOGLE GEMINI API    |    |   LOCAL OFFLINE OLLAMA|  |
+                      |  | (Classic GenerativeAI) | OR | (qwen2.5:1.5b Model)  |  |
+                      |  +------------------------+    +-----------------------+  |
+                      +-----------------------------------------------------------+
+```
+
 ---
-sequenceDiagram
-    participant App as Application
-    participant API as FastAPI Layer
-    participant LLM as AI/LLM Service
-    
-    App->>API: Send request with data
-    API->>API: Validate data
-    API->>LLM: Process with AI model
-    LLM->>API: Return results
-    API->>App: Deliver formatted response
+
+## 2. Module Interconnectivity & Data Flow
+
+### A. Authentication & Staff Authorization Gate
+* To protect sensitive administrative capabilities (stock editing, scraper triggers, AI insights) without cloud dependencies, a **Lightweight Client-Side Password Gate** is enforced.
+* Staff authenticate via the `/login` route using the preconfigured clinic access key: **`radevdent2026`**.
+* Once authenticated, a secure local session is established (`localStorage`), granting the browser full access to `/erp` and passing the mock token to the backend.
+
+### B. Product Inventory & Stock Management
+1. The frontend (`Erp.jsx`) loads the catalog via `GET /products`.
+2. When a staff member alters stock values (via the interactive stepper modal), the frontend fires `PUT /products/{product_id}/inventory`.
+3. The backend validates the request, updates the local SQLite/Supabase Postgres tables, and instantly returns the new data block.
+
+### C. Live Web Scraper Sync (Playwright Core)
+1. Triggered via `POST /scraper/run` (or the "СТАРТИРАЙ СКРЕЙПЪР" dashboard button).
+2. FastAPI delegates the task natively to its internal **`BackgroundTasks` thread pool** (safely preventing container timeout blockages).
+3. The scraper spawns Playwright headless Chromium instances to search **Dentstore.bg**, **Patricia.bg**, and **Belvezar.com** for: `"everX"`, `"G-aenial"`, `"G-Premio"`, and `"C-Pilot"`.
+4. Extracted promotional and standard prices are cleaned, parsed into exact Decimals, and committed directly to the database.
+
+### D. AI Promotion Synthesis (Dual-Engine Fallback)
+1. Triggered via `GET /promotions/analyze?provider=gemini` (or "AI ЦЕНОВИ АНАЛИЗ" dashboard button).
+2. **Primary (Google Gemini Cloud):** The backend builds a unified prompt representing current discounts $\ge 15\%$, calculates exact potential savings in Python, and calls Google Gemini API using the secure **`google-generativeai` REST SDK** (which is immune to local gcloud OAuth conflicts).
+3. **Secondary (Ollama Local Offline):** If Gemini fails or is unconfigured, the system automatically redirects to **Local Ollama** connecting on `127.0.0.1:11434` to run the **`qwen2.5:1.5b`** model completely offline with zero credentials required!
+4. **Self-Healing Fallback UI:** If both engines are unconfigured or down, the backend gracefully catches the error and returns a beautiful inline Bulgarian user guide instructing staff on how to activate their keys, keeping the app 100% stable and crash-free.
+
+---
+
+## 3. Technology Stack Specifications
+
+### Frontend Single Page Application (SPA)
+* **Vite + React 18:** Providing rapid development server boot speeds and optimal production builds.
+* **Tailwind CSS:** Fully styled with Radev Clinic's luxury-clinical color palette:
+  * Primary Navy: `#0B2545`
+  * Secondary Slate Blue: `#134074`
+  * Golden Accent: `#C5A880`
+  * Clinical Soft Ice: `#F4F7F6`
+* **React Router DOM:** Managing seamless hash-routing (`#/`, `#/login`, `#/erp`) to ensure error-free routing on static-hosting servers.
+* **Lucide React:** Premium vector outlines and active icons.
+
+### Backend REST API Service
+* **FastAPI:** High-performance, asynchronous Python ASGI web framework.
+* **SQLAlchemy ORM:** Providing dynamic SQL generation supporting SQLite and PostgreSQL engines out of the box.
+* **psycopg2-binary:** Enterprise-grade PostgreSQL adapter for Supabase cloud transactions.
+* **python-jose:** Lightweight JWT decoding for staff tokens.
+
+---
+
+## 4. Environment Variables Configuration
+
+The application reads configurations dynamically from `.env` files. Ensure these are set up correctly on your local disk.
+
+### A. Local Backend Configurations (`.env` in main root folder)
+Create a file named **`.env`** in the main `Denatl-ERP/` root directory:
+```env
+# 1. Database Connection (Choose LOCAL SQLite or CLOUD Supabase Postgres)
+# Local SQLite Address:
+DATABASE_URL=sqlite:///./dental_tracker.db
+# Cloud Supabase Address (IPv4 Pooler Optimized):
+# DATABASE_URL=postgresql://postgres:[password]@db.qerqlnhutwztvhcfwfmi.supabase.co:6543/postgres?sslmode=require
+
+# 2. Google Gemini Serverless AI API Key (Get yours for free at aistudio.google.com)
+GEMINI_API_KEY=AIzaSy...
+
+# 3. Local Offline Ollama Fallback Settings
+OLLAMA_HOST=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen2.5:1.5b
+OLLAMA_API_PATH=/v1/chat/completions
+OLLAMA_TIMEOUT_SECONDS=120
+OLLAMA_MAX_RETRIES=2
 ```
 
-### Why FastAPI for AI Engineering?
-
-1. **Performance**: Built on Starlette and Pydantic, FastAPI is fast and just works.
-2. **Automatic Documentation**: FastAPI automatically generates interactive API documentation (via Swagger UI and ReDoc) from your code and type annotations, making it easier for teams to collaborate.
-3. **Type Safety**: Leveraging Pydantic, FastAPI provides automatic request validation and clear error messages, reducing the likelihood of runtime errors.
-4. **Asynchronous Support**: Native support for async/await patterns allows your API to handle multiple requests efficiently while waiting for AI model responses.
-5. **WebSocket Support**: For streaming AI responses or building real-time applications, FastAPI provides first-class WebSocket support.
-
-## Learn More
-
-Beyond this README, [this tutorial](https://fastapi.tiangolo.com/tutorial/) shows you how to use FastAPI with most of its features, step by step. 
-
-## Quick Start
-
-1. Clone repository
-    ```bash
-   git clone https://github.com/daveebbelaar/fastapi-tutorial.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   uv sync
-   ```
-
-3. Run the application:
-   ```bash
-   cd app
-   uvicorn main:app --reload
-   ```
-
-3. Access your API:
-   - API endpoints: http://localhost:8000/events
-   - Interactive docs: http://localhost:8000/docs
-
-### About Uvicorn
-
-Uvicorn is an ASGI server that actually runs your FastAPI application. While FastAPI defines your API structure and logic, Uvicorn is the server that handles HTTP connections and serves your application. 
-
-Think of FastAPI as the blueprint for your API, and Uvicorn as the engine that powers it.
-
-The command `uvicorn main:app --reload` means:
-- `main`: Use the file named `main.py`
-- `:app`: Look for a variable named `app` within that file
-- `--reload`: Automatically restart the server when you change your code (useful during development)
-
-### Default Port
-
-By default, Uvicorn runs on port 8000. This means:
-- Your API will be accessible at `http://localhost:8000`
-- `localhost` refers to your own computer
-- `8000` is the "door" or port number through which requests can access your API
-
-You can change this with the `--port` flag if needed:
-```bash
-uvicorn main:app --port 5000
+### B. Frontend SPA Configurations (`frontend/.env`)
+Create a file named **`.env`** inside the `frontend/` directory:
+```env
+# Point to your local FastAPI server (or your Render/Railway hosted server url)
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## Structure
+---
 
-- `main.py`: Application entry point that creates the FastAPI app
-- `router.py`: Routes incoming requests to the appropriate endpoint handlers
-- `endpoint.py`: Defines data models and endpoint logic for processing events
+## 5. Local Setup & Execution Guide
 
-This modular approach keeps your code organized as your AI application grows in complexity.
+Follow these simple steps to run the complete medical portal locally on your Windows computer:
 
-> For comprehensive documentation, visit the [FastAPI official docs](https://fastapi.tiangolo.com/).
+### Step 1: Clone & Initialize Dependencies
+```powershell
+# Navigate into the project folder
+cd C:\Users\Genadi\Documents\Programing\Projects\Denatl-ERP
 
-## Code Walkthrough
+# Activate the virtual environment
+.venv\Scripts\Activate.ps1
 
-Let's examine how our three files work together to create a clean API for processing AI events.
-
-### 1. `main.py` - Application Entry Point
-
-```python
-from fastapi import FastAPI
-from router import router as process_router
-
-app = FastAPI()
-app.include_router(process_router)
+# Install required python packages
+.venv\Scripts\pip install -r requirements.txt
 ```
 
-This file:
+### Step 2: Launch the Backend API Server
+```powershell
+.venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+* The API documentation will be active at **`http://localhost:8000/docs`**.
 
-- Creates the main FastAPI application instance
-- Imports and includes our router
-- Serves as the entry point for Uvicorn to run our application
-
-### 2. `router.py` - Request Routing
-
-```python
-from fastapi import APIRouter
-import endpoint
-
-router = APIRouter()
-router.include_router(endpoint.router, prefix="/events", tags=["events"])
+### Step 3: Run the Local Web Scraper Sync
+To populate your newly created `dental_tracker.db` SQLite database file with initial products and live pricing:
+```powershell
+.venv\Scripts\python -c "from app.services.scraper_service import run_dental_scraper_task; run_dental_scraper_task()"
 ```
 
-This file:
-
-- Creates a main router
-- Imports our endpoint module with its router
-- Adds the endpoint router with the prefix `/events`
-- Uses tags for documentation organization
-- Routes all requests that start with `/events` to our endpoint
-
-### 3. `endpoint.py` - Core Logic
-
-```python
-import json
-from http import HTTPStatus
-
-from fastapi import APIRouter
-from pydantic import BaseModel
-from starlette.responses import Response
-
-router = APIRouter()
-
-
-class EventSchema(BaseModel):
-    """Event Schema"""
-
-    event_id: str
-    event_type: str
-    event_data: dict
-
-
-@router.post("/", dependencies=[])
-def handle_event(
-    data: EventSchema,
-) -> Response:
-    print(data)
-
-    # Return acceptance response
-    return Response(
-        content=json.dumps({"message": "Data received!"}),
-        status_code=HTTPStatus.ACCEPTED,
-    )
+### Step 4: Run the Local Offline Ollama Model
+Ensure you have Ollama installed and the model downloaded:
+```powershell
+# Pull the optimized Qwen 2.5 1.5B model locally (takes only 900MB)
+ollama pull qwen2.5:1.5b
 ```
 
-This file:
+### Step 5: Launch the React Frontend
+Open a second terminal, navigate to the `frontend/` folder, and start Vite:
+```powershell
+cd frontend
+npm run dev
+```
+* Open **`http://localhost:5173`** in your browser.
+* Use the secure staff password **`radevdent2026`** to enter the administrative portal.
 
-- Defines a Pydantic model `EventSchema` that validates incoming data
-- Creates an endpoint router
-- Defines a POST handler at `/` (which becomes `/events/` when mounted in router.py)
-- Accepts and validates incoming data against our schema
-- Returns a JSON response with HTTP status code 202 (Accepted)
+---
 
-#### Key Components:
+## 6. Cloud Deployment Instructions
 
-1. **Pydantic Model**: `EventSchema` defines the structure of valid incoming data:
-   - `event_id`: A unique identifier for the event
-   - `event_type`: The category or type of event
-   - `event_data`: A dictionary containing the actual event data
-
-2. **Router Decorator**: `@router.post("/")` creates a POST endpoint at the base path
-
-3. **Request Handler**: `handle_event()` processes incoming data:
-   - FastAPI automatically validates incoming JSON against `EventSchema`
-   - Invalid data will be rejected with appropriate error messages
-   - Valid data is passed to our function where we can process it
-
-4. **Response**: Returns a simple JSON confirmation with status code 202 (Accepted)
-
-## Sync vs. Async Endpoints in FastAPI
-
-FastAPI supports both synchronous and asynchronous request handlers.
-
-### Synchronous Endpoints
-
-Synchronous endpoints use standard Python functions and block the server while processing:
-
-```python
-@router.post("/sync")
-def sync_endpoint(data: EventSchema):
-    # This blocks the server until completion
-    result = process_data(data)
-    return {"result": result}
+### A. Deploy Frontend to Vercel (100% Free)
+Our frontend is configured with HashRouter, making Vercel deployments instantaneous and error-free:
+```powershell
+cd frontend
+npx vercel --prod --yes
 ```
 
-**When to use:** For quick operations that complete rapidly (under 1 second)
-
-### Asynchronous Endpoints
-
-Asynchronous endpoints use Python's `async`/`await` syntax and don't block the server:
-
-```python
-@router.post("/async")
-async def async_endpoint(data: EventSchema):
-    # This doesn't block the server
-    result = await async_process_data(data)
-    return {"result": result}
-```
-
-**When to use:** For operations that:
-
-- Involve I/O operations (API calls, database queries)
-- Take longer to process (complex AI inference)
-- Need to handle many concurrent requests
-
-### Key Points
-
-- FastAPI is designed for async and performs best with async handlers
-- You can mix sync and async endpoints in the same application
-- For AI applications with external API calls or long processing, async is strongly recommended
-- With sync functions, you need more workers to handle the same number of concurrent requests
-
-## Testing Your Endpoint
-
-To quickly test your FastAPI endpoint, you can use the `requests.py` file
-
-### What This Script Does
-
-1. Sets up the endpoint URL where your FastAPI server is running
-2. Creates a sample event with:
-   - A random UUID as the event ID
-   - A test event type
-   - A dictionary of sample event data
-3. Sends a POST request to your endpoint
-4. Prints the response status code and body
-
-## Understanding API Methods: GET vs POST
-
-If you're new to APIs, think of the difference between GET and POST as similar to the difference between reading and writing.
-
-### GET: Asking for Information
-
-A GET request is like asking someone a question. When you use GET in an API, you're simply requesting information without changing anything. 
-
-For example, checking the weather on a website is a GET request - you're just asking "What's the weather today?" without changing the weather itself.
-
-In FastAPI, you'd use GET when you want to retrieve information:
-
-```python
-@router.get("/status")
-def get_status():
-    return {"status": "online"}
-```
-
-This creates an endpoint that tells users about your API's status when they visit `/status`.
-
-### POST: Sending Information to Process
-
-A POST request is like filling out and submitting a form. When you use POST, you're sending data that needs to be processed or stored.
-
-Imagine ordering food through a delivery app. You're not just asking a question; you're submitting information (your order) that will change something on the server (create a new order in their system).
-
-In FastAPI, you'd use POST when receiving data for your AI to process:
-
-```python
-@router.post("/analyze")
-def analyze_text(data: TextSchema):
-    # Process the text with your AI model
-    return {"sentiment": "positive"}
-```
-
-This creates an endpoint that accepts text data, processes it, and returns an analysis.
-
-### When to Use Each in AI Applications
-
-For your AI applications, use GET when users are retrieving information without changing state - like checking if a model is available or retrieving previously generated results.
-
-Use POST when users are sending data that your AI needs to process - like text for summarization, images for classification, or parameters for generation.
-
-## Securing Your FastAPI Endpoint with Bearer Tokens
-
-Bearer token authentication is the recommended approach for modern APIs, including AI applications. It's more standardized and flexible than simple API keys.
-
-### Implementing Bearer Token Authentication
-
-```python
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-router = APIRouter()
-
-# Create security scheme
-security = HTTPBearer()
-
-# In production, store this in environment variables
-API_TOKEN = "your-secret-token"
-
-@router.post("/")
-def handle_event(
-    data: EventSchema,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    # Validate the token
-    if credentials.credentials != API_TOKEN:
-        raise HTTPException(
-            status_code=401, 
-            detail="Invalid authentication token"
-        )
-    
-    # Process the valid request
-    return {"message": "Data received!"}
-```
-
-### Sending Authenticated Requests
-
-```python
-import requests
-import json
-
-# API endpoint
-url = "http://localhost:8000/events/"
-
-# Sample event data
-event_data = {
-    "event_id": "123e4567-e89b-12d3-a456-426614174000",
-    "event_type": "test_event",
-    "event_data": {"message": "Hello AI world!"}
-}
-
-# Send POST request with Bearer token
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer your-secret-token"
-}
-
-response = requests.post(
-    url=url,
-    data=json.dumps(event_data),
-    headers=headers
-)
-```
-
-### Why Bearer Tokens?
-
-Bearer tokens have become the standard for API authentication because they:
-
-1. Follow OAuth 2.0 specifications used by major APIs worldwide
-2. Can be easily extended to JWT (JSON Web Tokens) for more advanced use cases
-3. Are supported by all API clients and languages
-4. Work well with token management systems
-
-For production applications, consider using JWT tokens which allow you to include expiration times and additional claims in the token itself.
-
-For more advanced authentication options, refer to the [FastAPI Security documentation](https://fastapi.tiangolo.com/tutorial/security/).
+### B. Deploy Backend to Render (100% Free via Docker)
+Our repository contains a pre-configured **`Dockerfile`** that installs all linux system dependencies and Playwright Chromium browsers automatically.
+1. Sign up at **[render.com](https://render.com)**.
+2. Select **New -> Web Service** and link your GitHub repository.
+3. Select **Language: `Docker`**.
+4. In the **Environment Variables (Advanced)** settings, add:
+   * `DATABASE_URL` = Your Supabase Postgres pooler connection string.
+   * `GEMINI_API_KEY` = Your Google Gemini key starting with `AIzaSy`.
+5. Deploy! Render will build the container and provide a live URL (e.g. `https://your-app.onrender.com`).
+6. Update `VITE_API_BASE_URL` in `frontend/.env` to this new Render URL, recompile with `npm run build`, and redeploy to Vercel!

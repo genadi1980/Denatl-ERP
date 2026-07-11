@@ -45,8 +45,8 @@ export default function Landing() {
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-clinic-charcoal/80">
             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Начало</button>
+            <button onClick={() => scrollToSection('about')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">За нас</button>  
             <button onClick={() => scrollToSection('services')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Услуги</button>
-            <button onClick={() => scrollToSection('about')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">За нас</button>
             <button onClick={() => scrollToSection('stats')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Доверие</button>
             <button onClick={() => scrollToSection('contact')} className="hover:text-clinic-blue transition-colors duration-200 outline-none">Контакти</button>
           </div>
